@@ -1,3 +1,2 @@
-# Battleship
-Battleship game
+# Battleship game
 Run Battleship.GUI
