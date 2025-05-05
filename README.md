@@ -1,5 +1,5 @@
 # Battleship game
-Run Battleship.GUI
+Run Battleship.GUI. The first initialization may take 5-10 seconds
 
 When the game is first initialized, a set of instructions at the top of the GUI is shown. The player places 4 ships, from lengths 2-5, and then the attacking phase starts. The player goes first by choosing a tile on the enemy waters (CPU's board). Then the CPU will attack a tile on the player's board. This continues until all ships on one side’s board are sunk. Then, a game over pop-up will be displayed. After each ship is sunk, there will also be a pop-up notifying which side and which ship has been sunk. The results of each turn are also displayed at the bottom of the GUI. At the end of the game, if the player loses, the enemy ships will be revealed. 
 
