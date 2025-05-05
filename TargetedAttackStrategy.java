@@ -33,7 +33,7 @@ public class TargetedAttackStrategy implements AttackStrategy {
             availableDirections.remove(index);
 
             Position nextPos = firstHit.getAdjacent(currentDirection);
-            if (isValid(nextPos, history)) {
+            if (nextPos != null && isValid(nextPos, history)) {
                 return nextPos;
             } else {
                 // try another direction if this one is invalid
@@ -42,14 +42,14 @@ public class TargetedAttackStrategy implements AttackStrategy {
         } else if (!tryingOppositeDirection) {
             // continue in current direction
             Position nextPos = lastHit.getAdjacent(currentDirection);
-            if (isValid(nextPos, history)) {
+            if (nextPos != null && isValid(nextPos, history)) {
                 return nextPos;
             } else {
                 // if hit board edge or already attacked position, switch to opposite direction from first hit
                 tryingOppositeDirection = true;
                 currentDirection = currentDirection.getOpposite();
                 nextPos = firstHit.getAdjacent(currentDirection);
-                if (isValid(nextPos, history)) {
+                if (nextPos != null && isValid(nextPos, history)) {
                     return nextPos;
                 } else {
                     // if opposite direction isnt valid either, try remaining directions
