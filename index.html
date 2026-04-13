@@ -1,0 +1,724 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Battleship</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #0a1628;
+      color: #e0e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: #4fc3f7;
+      text-shadow: 0 0 20px rgba(79,195,247,0.5);
+      margin-bottom: 4px;
+    }
+
+    #subtitle { font-size: 0.85rem; color: #78909c; letter-spacing: 2px; margin-bottom: 18px; }
+
+    #status-bar {
+      background: #132035;
+      border: 1px solid #1e3a5f;
+      border-radius: 8px;
+      padding: 10px 24px;
+      margin-bottom: 18px;
+      font-size: 1rem;
+      color: #80cbc4;
+      text-align: center;
+      max-width: 820px;
+      width: 100%;
+    }
+
+    #controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 18px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    button {
+      background: #1565c0;
+      color: #e3f2fd;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 20px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+    button:hover:not(:disabled) { background: #1976d2; transform: translateY(-1px); }
+    button:active:not(:disabled) { transform: translateY(0); }
+    button:disabled { background: #263238; color: #546e7a; cursor: default; }
+
+    #rotate-btn { background: #37474f; }
+    #rotate-btn:hover:not(:disabled) { background: #455a64; }
+
+    #new-game-btn { background: #1b5e20; }
+    #new-game-btn:hover:not(:disabled) { background: #2e7d32; }
+
+    #boards-container {
+      display: flex;
+      gap: 40px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 18px;
+    }
+
+    .board-wrapper { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+
+    .board-title { font-size: 1rem; letter-spacing: 2px; text-transform: uppercase; color: #90a4ae; }
+
+    .board {
+      display: grid;
+      grid-template-columns: 28px repeat(10, 36px);
+      grid-template-rows: 28px repeat(10, 36px);
+      gap: 2px;
+    }
+
+    .board-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      color: #546e7a;
+      font-weight: bold;
+    }
+
+    .cell {
+      width: 36px;
+      height: 36px;
+      border-radius: 4px;
+      background: #0d2137;
+      border: 1px solid #1a3a5c;
+      cursor: default;
+      transition: background 0.12s, transform 0.08s;
+      position: relative;
+      font-size: 0;
+    }
+
+    .cell.ship { background: #1e3d5c; border-color: #2a5280; }
+
+    .cell.hit  { background: #b71c1c !important; border-color: #e53935 !important; }
+    .cell.hit::after  { content: "\2715"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #ffcdd2; font-size: 1.1rem; font-weight: bold; }
+
+    .cell.miss { background: #1a3a5c !important; border-color: #2196f3 !important; }
+    .cell.miss::after { content: "\00B7"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #4fc3f7; font-size: 2rem; line-height: 1; }
+
+    .cell.sunk { background: #4a1010 !important; border-color: #c62828 !important; }
+    .cell.sunk::after { content: "\2715"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #ef9a9a; font-size: 1.1rem; font-weight: bold; }
+
+    #enemy-board .cell.attackable { cursor: crosshair; }
+    #enemy-board .cell.attackable:hover { background: #1a4a7a; border-color: #42a5f5; transform: scale(1.05); }
+
+    .cell.preview-valid   { background: #1b5e20 !important; border-color: #43a047 !important; }
+    .cell.preview-invalid { background: #7f0000 !important; border-color: #c62828 !important; }
+    .cell.placing { cursor: crosshair; }
+
+    #ship-legend {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 10px;
+      font-size: 0.8rem;
+      color: #78909c;
+    }
+    .legend-item { display: flex; align-items: center; gap: 5px; }
+    .legend-dot { width: 14px; height: 14px; border-radius: 3px; border: 1px solid #2a5280; }
+
+    #ship-list {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 14px;
+      font-size: 0.82rem;
+    }
+    .ship-badge {
+      background: #132035;
+      border: 1px solid #1e3a5f;
+      border-radius: 6px;
+      padding: 4px 12px;
+      color: #90a4ae;
+    }
+    .ship-badge.current  { border-color: #4fc3f7; color: #4fc3f7; font-weight: bold; }
+    .ship-badge.placed   { color: #37474f; text-decoration: line-through; border-color: #263238; }
+
+    #log {
+      background: #0b1e2d;
+      border: 1px solid #1e3a5f;
+      border-radius: 8px;
+      padding: 10px 14px;
+      width: 100%;
+      max-width: 820px;
+      height: 140px;
+      overflow-y: auto;
+      font-size: 0.82rem;
+      color: #78909c;
+      font-family: Consolas, monospace;
+    }
+    #log p { margin: 2px 0; padding: 1px 0; border-bottom: 1px solid #0f2236; }
+    #log p:last-child { border-bottom: none; }
+    #log p.log-hit  { color: #ef9a9a; }
+    #log p.log-miss { color: #4dd0e1; }
+    #log p.log-sunk { color: #ffcc80; font-weight: bold; }
+    #log p.log-info { color: #80cbc4; }
+    #log p.log-win  { color: #a5d6a7; font-weight: bold; font-size: 0.9rem; }
+    #log p.log-lose { color: #ef9a9a;  font-weight: bold; font-size: 0.9rem; }
+
+    #overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    #overlay.show { display: flex; }
+    #overlay-box {
+      background: #132035;
+      border: 2px solid #1e3a5f;
+      border-radius: 12px;
+      padding: 36px 48px;
+      text-align: center;
+      max-width: 380px;
+    }
+    #overlay-title { font-size: 2rem; margin-bottom: 10px; }
+    #overlay-msg   { color: #90a4ae; margin-bottom: 24px; font-size: 1rem; }
+    #overlay-play-btn { font-size: 1rem; padding: 10px 32px; }
+  </style>
+</head>
+<body>
+
+<h1>&#9875; Battleship</h1>
+<p id="subtitle">Naval Combat Simulator</p>
+
+<div id="status-bar">Loading&hellip;</div>
+
+<div id="controls">
+  <button id="rotate-btn">&#8635; Rotate &mdash; Direction: East</button>
+  <button id="new-game-btn">&#8634; New Game</button>
+</div>
+
+<div id="ship-list"></div>
+
+<div id="ship-legend">
+  <span class="legend-item"><span class="legend-dot" style="background:#1e3d5c"></span>Your Ship</span>
+  <span class="legend-item"><span class="legend-dot" style="background:#b71c1c;border-color:#e53935"></span>Hit</span>
+  <span class="legend-item"><span class="legend-dot" style="background:#4a1010;border-color:#c62828"></span>Sunk</span>
+  <span class="legend-item"><span class="legend-dot" style="background:#1a3a5c;border-color:#2196f3"></span>Miss</span>
+</div>
+
+<div id="boards-container">
+  <div class="board-wrapper">
+    <div class="board-title">Your Fleet</div>
+    <div class="board" id="player-board"></div>
+  </div>
+  <div class="board-wrapper">
+    <div class="board-title">Enemy Waters</div>
+    <div class="board" id="enemy-board"></div>
+  </div>
+</div>
+
+<div id="log"></div>
+
+<div id="overlay">
+  <div id="overlay-box">
+    <div id="overlay-title"></div>
+    <div id="overlay-msg"></div>
+    <button id="overlay-play-btn">Play Again</button>
+  </div>
+</div>
+
+<script>
+// ─── Ship definitions (mirrors ShipFactory.ShipType order) ───────────────────
+const SHIP_DEFS = [
+  { name: "Carrier",    length: 5 },
+  { name: "Battleship", length: 4 },
+  { name: "Submarine",  length: 3 },
+  { name: "Destroyer",  length: 2 },
+];
+
+const SIZE = 10;
+const DIRECTIONS = ["NORTH", "EAST", "SOUTH", "WEST"];
+
+// ─── Direction helpers (mirrors Direction.java) ───────────────────────────────
+const DIR_OFFSET = { NORTH:[0,-1], EAST:[1,0], SOUTH:[0,1], WEST:[-1,0] };
+const DIR_OPPOSITE = { NORTH:"SOUTH", SOUTH:"NORTH", EAST:"WEST", WEST:"EAST" };
+
+function adjacent(x, y, dir) {
+  const [dx, dy] = DIR_OFFSET[dir];
+  return [x + dx, y + dy];
+}
+function inBounds(x, y) { return x >= 0 && x < SIZE && y >= 0 && y < SIZE; }
+
+// ─── Board (mirrors GameBoard.java) ──────────────────────────────────────────
+function makeBoard() {
+  // cells[x][y] to match Java's cells[x][y] indexing
+  const cells = Array.from({length: SIZE}, () =>
+    Array.from({length: SIZE}, () => ({ ship: null, hit: false }))
+  );
+  return { cells, ships: [] };
+}
+
+function shipPositions(x, y, dir, length) {
+  const out = [];
+  let cx = x, cy = y;
+  for (let i = 0; i < length; i++) {
+    out.push([cx, cy]);
+    [cx, cy] = adjacent(cx, cy, dir);
+  }
+  return out;
+}
+
+function canPlace(board, x, y, dir, length) {
+  const pos = shipPositions(x, y, dir, length);
+  if (pos.length !== length) return false;
+  return pos.every(([px, py]) => inBounds(px, py) && board.cells[px][py].ship === null);
+}
+
+function placeShip(board, x, y, dir, ship) {
+  const pos = shipPositions(x, y, dir, ship.length);
+  ship.cells = pos;
+  pos.forEach(([px, py]) => { board.cells[px][py].ship = ship; });
+  board.ships.push(ship);
+  ship.placed = true;
+}
+
+// mirrors GameBoard.receiveAttack — returns { alreadyHit, hit, ship, sunk }
+function receiveAttack(board, x, y) {
+  const cell = board.cells[x][y];
+  if (cell.hit) return { alreadyHit: true };
+  cell.hit = true;
+  if (cell.ship) {
+    cell.ship.hits++;
+    return { hit: true, ship: cell.ship, sunk: cell.ship.hits >= cell.ship.length };
+  }
+  return { hit: false };
+}
+
+function allSunk(board) { return board.ships.every(s => s.hits >= s.length); }
+
+// mirrors GameBoard.isHit
+function isHit(board, x, y) { return board.cells[x][y].hit; }
+
+// ─── SmartCPU (mirrors SmartCPUStrategy → RandomAttackStrategy + TargetedAttackStrategy)
+function makeCPU() {
+  return {
+    mode: "random",
+    firstHit: null, lastHit: null,
+    currentDir: null,
+    directionEstablished: false,
+    tryingOpposite: false,
+    availableDirs: [],
+
+    reset() {
+      this.mode = "random";
+      this.firstHit = this.lastHit = this.currentDir = null;
+      this.directionEstablished = this.tryingOpposite = false;
+      this.availableDirs = [];
+    },
+
+    // mirrors RandomAttackStrategy.getNextAttackPosition
+    _random(history) {
+      const tried = new Set(history.map(([x,y]) => x*SIZE+y));
+      const pool = [];
+      for (let x = 0; x < SIZE; x++)
+        for (let y = 0; y < SIZE; y++)
+          if (!tried.has(x*SIZE+y)) pool.push([x,y]);
+      return pool[Math.floor(Math.random() * pool.length)];
+    },
+
+    _valid(x, y, history) {
+      return inBounds(x, y) && !history.some(([hx,hy]) => hx===x && hy===y);
+    },
+
+    // mirrors TargetedAttackStrategy.getNextAttackPosition
+    _targeted(history) {
+      if (!this.firstHit) return this._random(history);
+
+      if (!this.directionEstablished) {
+        while (this.availableDirs.length > 0) {
+          const i = Math.floor(Math.random() * this.availableDirs.length);
+          this.currentDir = this.availableDirs.splice(i, 1)[0];
+          const [nx, ny] = adjacent(...this.firstHit, this.currentDir);
+          if (this._valid(nx, ny, history)) return [nx, ny];
+        }
+        return this._random(history);
+      }
+
+      if (!this.tryingOpposite) {
+        const [nx, ny] = adjacent(...this.lastHit, this.currentDir);
+        if (this._valid(nx, ny, history)) return [nx, ny];
+        this.tryingOpposite = true;
+        this.currentDir = DIR_OPPOSITE[this.currentDir];
+        const [ox, oy] = adjacent(...this.firstHit, this.currentDir);
+        if (this._valid(ox, oy, history)) return [ox, oy];
+        this.directionEstablished = false;
+        this.tryingOpposite = false;
+        return this._random(history);
+      }
+
+      const [nx, ny] = adjacent(...this.lastHit, this.currentDir);
+      if (this._valid(nx, ny, history)) return [nx, ny];
+      this.directionEstablished = false;
+      this.tryingOpposite = false;
+      return this._random(history);
+    },
+
+    // mirrors CPUPlayer.determineAttackPosition
+    getNextAttack(board, history) {
+      let pos;
+      do {
+        pos = this.mode === "random" ? this._random(history) : this._targeted(history);
+      } while (pos && isHit(board, pos[0], pos[1]));
+      return pos;
+    },
+
+    // mirrors SmartCPUStrategy.recordHit
+    recordHit(x, y, sunk) {
+      if (this.mode === "random") {
+        this.mode = "targeted";
+        this.firstHit = [x, y];
+        this.lastHit  = [x, y];
+        this.availableDirs = [...DIRECTIONS];
+        this.directionEstablished = false;
+        this.tryingOpposite = false;
+        this.currentDir = null;
+      } else {
+        this.lastHit = [x, y];
+        if (!this.directionEstablished && this.currentDir) this.directionEstablished = true;
+      }
+      if (sunk) this.reset();
+    },
+
+    // mirrors SmartCPUStrategy.recordMiss
+    recordMiss(x, y) {
+      if (this.directionEstablished && !this.tryingOpposite) {
+        this.tryingOpposite = true;
+        this.currentDir = DIR_OPPOSITE[this.currentDir];
+      }
+    },
+  };
+}
+
+// ─── Game state ───────────────────────────────────────────────────────────────
+let playerBoard, enemyBoard;
+let placementIdx;   // index into SHIP_DEFS (mirrors remainingShipTypes)
+let placedCount;    // how many the player has placed
+let currentDir;     // placement direction
+let isPlacementPhase, gameOver, processingTurn;
+let cpuHistory, cpu;
+
+// ─── DOM helpers ─────────────────────────────────────────────────────────────
+const $  = id => document.getElementById(id);
+const col = x  => String.fromCharCode(65 + x);   // A-J
+const row = y  => y + 1;                          // 1-10
+
+function setStatus(msg) { $("status-bar").textContent = msg; }
+
+function addLog(msg, cls) {
+  const p = document.createElement("p");
+  if (cls) p.className = cls;
+  p.textContent = msg;
+  $("log").prepend(p);
+}
+
+function updateShipList() {
+  const el = $("ship-list");
+  el.innerHTML = "";
+  SHIP_DEFS.forEach((def, i) => {
+    const badge = document.createElement("span");
+    badge.className = "ship-badge" +
+      (i < placedCount ? " placed" :
+       i === placementIdx && isPlacementPhase ? " current" : "");
+    badge.textContent = def.name + " (" + def.length + ")";
+    el.appendChild(badge);
+  });
+}
+
+// ─── Board rendering ──────────────────────────────────────────────────────────
+function buildBoardDOM(boardId) {
+  const el = $(boardId);
+  el.innerHTML = "";
+
+  // corner
+  const corner = document.createElement("div");
+  corner.className = "board-label";
+  el.appendChild(corner);
+
+  for (let x = 0; x < SIZE; x++) {
+    const l = document.createElement("div");
+    l.className = "board-label";
+    l.textContent = col(x);
+    el.appendChild(l);
+  }
+
+  for (let y = 0; y < SIZE; y++) {
+    const l = document.createElement("div");
+    l.className = "board-label";
+    l.textContent = row(y);
+    el.appendChild(l);
+
+    for (let x = 0; x < SIZE; x++) {
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      cell.dataset.x = x;
+      cell.dataset.y = y;
+      el.appendChild(cell);
+    }
+  }
+}
+
+function cellEl(boardId, x, y) {
+  return $(boardId).querySelector("[data-x='" + x + "'][data-y='" + y + "']");
+}
+
+// mirrors BattleshipGUI cell color logic
+function renderCell(boardId, x, y, board, hideShips) {
+  const el = cellEl(boardId, x, y);
+  if (!el) return;
+  const c = board.cells[x][y];
+  el.className = "cell";
+  el.onclick = null; el.onmouseenter = null; el.onmouseleave = null;
+
+  if (c.hit) {
+    if (c.ship) {
+      el.classList.add(c.ship.hits >= c.ship.length ? "sunk" : "hit");
+    } else {
+      el.classList.add("miss");
+    }
+  } else if (!hideShips && c.ship) {
+    el.classList.add("ship");
+  } else if (boardId === "enemy-board" && !isPlacementPhase && !gameOver) {
+    el.classList.add("attackable");
+    el.onclick = () => handlePlayerAttack(x, y);
+  } else if (boardId === "player-board" && isPlacementPhase) {
+    el.classList.add("placing");
+    el.onmouseenter = () => showPreview(x, y);
+    el.onmouseleave = clearPreview;
+    el.onclick = () => handlePlacement(x, y);
+  }
+}
+
+function renderBoards() {
+  for (let y = 0; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      renderCell("player-board", x, y, playerBoard, false);
+      renderCell("enemy-board",  x, y, enemyBoard,  true);
+    }
+  }
+}
+
+// ─── Placement preview ────────────────────────────────────────────────────────
+function showPreview(x, y) {
+  const def = SHIP_DEFS[placementIdx];
+  const valid = canPlace(playerBoard, x, y, currentDir, def.length);
+  shipPositions(x, y, currentDir, def.length).forEach(([px, py]) => {
+    if (!inBounds(px, py)) return;
+    const el = cellEl("player-board", px, py);
+    if (el) el.classList.add(valid ? "preview-valid" : "preview-invalid");
+  });
+}
+
+function clearPreview() {
+  $("player-board").querySelectorAll(".preview-valid, .preview-invalid").forEach(el => {
+    el.classList.remove("preview-valid", "preview-invalid");
+  });
+}
+
+// ─── Placement (mirrors GameController.tryPlacePlayerShip) ───────────────────
+function handlePlacement(x, y) {
+  if (!isPlacementPhase) return;
+  const def = SHIP_DEFS[placementIdx];
+
+  if (!canPlace(playerBoard, x, y, currentDir, def.length)) {
+    addLog("Invalid placement for " + def.name + " at " + col(x) + row(y) + " facing " + currentDir + ".", "log-info");
+    return;
+  }
+
+  const ship = { name: def.name, length: def.length, hits: 0, cells: [], placed: false };
+  placeShip(playerBoard, x, y, currentDir, ship);
+  addLog("Placed " + def.name + " at " + col(x) + row(y) + " facing " + currentDir + ".", "log-info");
+
+  placedCount++;
+  placementIdx++;
+
+  if (placementIdx >= SHIP_DEFS.length) {
+    isPlacementPhase = false;
+    $("rotate-btn").disabled = true;
+    setStatus("All ships placed! Attack the Enemy Waters.");
+    addLog("All ships placed! Game begins — attack the enemy board!", "log-info");
+  } else {
+    const next = SHIP_DEFS[placementIdx];
+    setStatus("Place your " + next.name + " (length " + next.length + ") — Direction: " + currentDir);
+    addLog("Ship placed! Now place your " + next.name + " (length " + next.length + ").", "log-info");
+  }
+
+  updateShipList();
+  renderBoards();
+}
+
+// ─── Attack (mirrors GameController.playerAttack + cpuAttack) ────────────────
+function handlePlayerAttack(x, y) {
+  if (processingTurn || gameOver || isPlacementPhase) return;
+  processingTurn = true;
+
+  const r = receiveAttack(enemyBoard, x, y);
+  if (r.alreadyHit) {
+    addLog("This position has already been attacked.", "log-info");
+    processingTurn = false;
+    return;
+  }
+
+  if (r.hit) {
+    if (r.sunk) {
+      addLog("Player HIT and SUNK the enemy " + r.ship.name + "!", "log-sunk");
+    } else {
+      addLog("Player HIT at " + col(x) + row(y) + "!", "log-hit");
+    }
+    if (allSunk(enemyBoard)) {
+      gameOver = true;
+      renderBoards();
+      addLog("Player wins! All enemy ships sunk!", "log-win");
+      showOverlay("Victory!", "You have defeated the enemy fleet!");
+      processingTurn = false;
+      return;
+    }
+  } else {
+    addLog("Player MISSED at " + col(x) + row(y) + ".", "log-miss");
+  }
+
+  renderBoards();
+  setTimeout(doCpuTurn, 650);
+}
+
+function doCpuTurn() {
+  if (gameOver) { processingTurn = false; return; }
+
+  const pos = cpu.getNextAttack(playerBoard, cpuHistory);
+  const [x, y] = pos;
+  cpuHistory.push([x, y]);
+
+  const r = receiveAttack(playerBoard, x, y);
+  if (r.hit) {
+    cpu.recordHit(x, y, r.sunk);
+    if (r.sunk) {
+      addLog("Enemy HIT and SUNK your " + r.ship.name + "!", "log-sunk");
+    } else {
+      addLog("Enemy HIT at " + col(x) + row(y) + "!", "log-hit");
+    }
+    if (allSunk(playerBoard)) {
+      gameOver = true;
+      renderBoards();
+      addLog("Enemy wins! All your ships sunk!", "log-lose");
+      showOverlay("Defeat!", "Your fleet has been destroyed!");
+      processingTurn = false;
+      return;
+    }
+  } else {
+    cpu.recordMiss(x, y);
+    addLog("Enemy MISSED at " + col(x) + row(y) + ".", "log-miss");
+  }
+
+  renderBoards();
+  processingTurn = false;
+}
+
+// ─── CPU ship placement (mirrors GameController.placeCPUShips) ────────────────
+function placeCpuShips() {
+  SHIP_DEFS.forEach(def => {
+    let placed = false;
+    while (!placed) {
+      const dir = DIRECTIONS[Math.floor(Math.random() * DIRECTIONS.length)];
+      const x   = Math.floor(Math.random() * SIZE);
+      const y   = Math.floor(Math.random() * SIZE);
+      if (canPlace(enemyBoard, x, y, dir, def.length)) {
+        const ship = { name: def.name, length: def.length, hits: 0, cells: [], placed: false };
+        placeShip(enemyBoard, x, y, dir, ship);
+        placed = true;
+      }
+    }
+  });
+}
+
+// ─── Overlay ──────────────────────────────────────────────────────────────────
+function showOverlay(title, msg) {
+  $("overlay-title").textContent = title;
+  $("overlay-msg").textContent   = msg;
+  $("overlay").classList.add("show");
+}
+
+// ─── Init / New Game (mirrors GameController constructor) ─────────────────────
+function startGame() {
+  $("overlay").classList.remove("show");
+  $("log").innerHTML = "";
+
+  playerBoard      = makeBoard();
+  enemyBoard       = makeBoard();
+  placementIdx     = 0;
+  placedCount      = 0;
+  currentDir       = "EAST";
+  isPlacementPhase = true;
+  gameOver         = false;
+  processingTurn   = false;
+  cpuHistory       = [];
+  cpu              = makeCPU();
+
+  $("rotate-btn").disabled = false;
+  updateRotateBtn();
+  buildBoardDOM("player-board");
+  buildBoardDOM("enemy-board");
+
+  placeCpuShips();
+  addLog("Enemy ships have been placed.", "log-info");
+
+  const first = SHIP_DEFS[0];
+  setStatus("Place your " + first.name + " (length " + first.length + ")");
+  addLog("Place your " + first.name + " (length " + first.length + ")", "log-info");
+
+  updateShipList();
+  renderBoards();
+}
+
+function updateRotateBtn() {
+  $("rotate-btn").textContent = "\u21BB Rotate \u2014 Direction: " + currentDir;
+}
+
+$("rotate-btn").addEventListener("click", () => {
+  currentDir = DIRECTIONS[(DIRECTIONS.indexOf(currentDir) + 1) % DIRECTIONS.length];
+  updateRotateBtn();
+  clearPreview();
+  if (isPlacementPhase) {
+    const def = SHIP_DEFS[placementIdx];
+    setStatus("Place your " + def.name + " (length " + def.length + ") \u2014 Direction: " + currentDir);
+  }
+});
+
+$("new-game-btn").addEventListener("click", () => {
+  if (!gameOver && !isPlacementPhase && !confirm("Start a new game? Current game will be lost.")) return;
+  startGame();
+});
+
+$("overlay-play-btn").addEventListener("click", startGame);
+
+startGame();
+</script>
+</body>
+</html>
